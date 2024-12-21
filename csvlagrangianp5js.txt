@@ -1,0 +1,171 @@
+let outerPolygonPoints = [];
+let innerPolygonPoints = [];
+let convexHullPoints = [];
+let inscribedCircle = { x: 0, y: 0, radius: 0 };
+
+function setup() {
+  createCanvas(400, 400);
+  
+  // Generate random points and form the convex hull
+  generateRandomPoints(10, width / 2, height / 2, 150);
+  convexHullPoints = convexHull(outerPolygonPoints);
+
+  // Generate a random inscribed polygon inside the convex hull
+  innerPolygonPoints = generateInscribedPolygon(convexHullPoints, 5);
+
+  // Calculate the inscribed circle for the outer polygon
+  calculateInscribedCircle();
+
+  // Draw the outer polygon (convex hull)
+  stroke(0);
+  fill(150, 0, 255, 100);
+  beginShape();
+  for (let pt of convexHullPoints) {
+    vertex(pt.x, pt.y);
+  }
+  endShape(CLOSE);
+
+  // Draw the inner polygon (inscribed polygon)
+  fill(0, 255, 0, 100);
+  beginShape();
+  for (let pt of innerPolygonPoints) {
+    vertex(pt.x, pt.y);
+  }
+  endShape(CLOSE);
+
+  // Draw the inscribed circle
+  noFill();
+  ellipse(inscribedCircle.x, inscribedCircle.y, inscribedCircle.radius * 2);
+
+  // Create buttons to download CSV files
+  createButton('Download Outer Polygon CSV')
+    .position(10, height + 10)
+    .mousePressed(saveOuterPolygonCSV);
+
+  createButton('Download Inner Polygon CSV')
+    .position(10, height + 40)
+    .mousePressed(saveInnerPolygonCSV);
+
+  createButton('Download Inscribed Circle CSV')
+    .position(10, height + 70)
+    .mousePressed(saveCircleCSV);
+}
+
+function draw() {
+  // For now, no drawing in draw function as we already plotted in setup
+}
+
+// Generate random points inside a circle
+function generateRandomPoints(count, cx, cy, radius) {
+  for (let i = 0; i < count; i++) {
+    let angle = random(TWO_PI);
+    let r = random(0, radius);
+    let x = cx + cos(angle) * r;
+    let y = cy + sin(angle) * r;
+    outerPolygonPoints.push(createVector(x, y));
+  }
+}
+
+// Convex Hull Algorithm (Andrew's monotone chain)
+function convexHull(points) {
+  points.sort((a, b) => a.x - b.x || a.y - b.y);
+  
+  let lower = [];
+  for (let pt of points) {
+    while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], pt) <= 0) {
+      lower.pop();
+    }
+    lower.push(pt);
+  }
+
+  let upper = [];
+  for (let i = points.length - 1; i >= 0; i--) {
+    while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], points[i]) <= 0) {
+      upper.pop();
+    }
+    upper.push(points[i]);
+  }
+
+  lower.pop();
+  upper.pop();
+  return lower.concat(upper);
+}
+
+function cross(o, a, b) {
+  return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+}
+
+// Generate an inscribed polygon inside the convex hull
+function generateInscribedPolygon(outerPolygon, count) {
+  let centroid = createVector(0, 0);
+  for (let pt of outerPolygon) {
+    centroid.add(pt);
+  }
+  centroid.div(outerPolygon.length);
+
+  let inscribedPoints = [];
+  for (let i = 0; i < count; i++) {
+    let angle = random(TWO_PI);
+    let radius = random(50, 100); // Distance from the centroid to be inside the convex hull
+    let x = centroid.x + cos(angle) * radius;
+    let y = centroid.y + sin(angle) * radius;
+    inscribedPoints.push(createVector(x, y));
+  }
+  return inscribedPoints;
+}
+
+// Calculate the inscribed circle (simplified method)
+function calculateInscribedCircle() {
+  let centroid = createVector(0, 0);
+  for (let pt of convexHullPoints) {
+    centroid.add(pt);
+  }
+  centroid.div(convexHullPoints.length);
+
+  // Find the minimum distance from centroid to the edges
+  let minDist = Infinity;
+  for (let i = 0; i < convexHullPoints.length; i++) {
+    let next = (i + 1) % convexHullPoints.length;
+    let p1 = convexHullPoints[i];
+    let p2 = convexHullPoints[next];
+    let d = distToSegment(centroid, p1, p2);
+    minDist = min(minDist, d);
+  }
+
+  inscribedCircle.radius = minDist;
+  inscribedCircle.x = centroid.x;
+  inscribedCircle.y = centroid.y;
+}
+
+// Distance from point to line segment
+function distToSegment(p, v, w) {
+  let l2 = dist(v.x, v.y, w.x, w.y) ** 2;  // Use dist() to calculate squared distance
+  if (l2 === 0.0) return dist(p.x, p.y, v.x, v.y); // If the segment is just a point, return distance to point
+  let t = max(0, min(1, ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2));
+  return dist(p.x, p.y, v.x + t * (w.x - v.x), v.y + t * (w.y - v.y)); // Return the distance from the point to the line segment
+}
+
+// Save Outer Polygon CSV
+function saveOuterPolygonCSV() {
+  let csv = 'x,y\n';
+  for (let pt of convexHullPoints) {
+    csv += pt.x + ',' + pt.y + '\n';
+  }
+  save('outer_polygon.csv', csv);
+}
+
+// Save Inner Polygon CSV
+function saveInnerPolygonCSV() {
+  let csv = 'x,y\n';
+  for (let pt of innerPolygonPoints) {
+    csv += pt.x + ',' + pt.y + '\n';
+  }
+  save('inner_polygon.csv', csv);
+}
+
+// Save Circle CSV
+function saveCircleCSV() {
+  let csv = 'x,y,radius\n';
+  csv += inscribedCircle.x + ',' + inscribedCircle.y + ',' + inscribedCircle.radius + '\n';
+  save('inscribed_circle.csv', csv);
+}

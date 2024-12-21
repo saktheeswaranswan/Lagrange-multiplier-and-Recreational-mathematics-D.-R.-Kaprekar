@@ -1,0 +1,113 @@
+// Kaprekar Cycle Visualization with Animation in p5.js
+
+let nodes = [];
+let edges = [];
+let cycle = [];
+let step = 0;
+let radius = 200;
+let calculations = [];
+let num1 = 123456783453453453; // Example input number 1
+let num2 = 109876546345634653; // Example input number 2
+
+function sumOfSquares(n) {
+  let digits = String(n).split('').map(Number);
+  let squares = digits.map(digit => digit * digit);
+  calculations.push({ number: n, digits: digits, squares: squares, sum: squares.reduce((a, b) => a + b, 0) });
+  return squares.reduce((a, b) => a + b, 0);
+}
+
+function kaprekarCycle(n) {
+  let seen = [];
+  calculations = [];
+  while (!seen.includes(n)) {
+    seen.push(n);
+    n = sumOfSquares(n);
+  }
+  return seen;
+}
+
+function setup() {
+  createCanvas(1000, 800);
+  textAlign(CENTER, CENTER);
+  textSize(16);
+
+  // Start with the combined sum of squares of the two input numbers
+  let result = sumOfSquares(num1) + sumOfSquares(num2);
+
+  // Generate Kaprekar cycle
+  cycle = kaprekarCycle(result);
+
+  // Create nodes positioned in a circle
+  let angleStep = TWO_PI / cycle.length;
+  for (let i = 0; i < cycle.length; i++) {
+    let angle = i * angleStep;
+    let x = width / 2 + radius * cos(angle);
+    let y = height / 2 + radius * sin(angle);
+    nodes.push({ id: i, value: cycle[i], x: x, y: y });
+    if (i > 0) {
+      edges.push({ from: i - 1, to: i });
+    }
+  }
+  // Add the final edge to complete the cycle
+  edges.push({ from: cycle.length - 1, to: 0 });
+
+  frameRate(1); // Slow down animation for better visualization
+}
+
+function draw() {
+  background(30);
+  fill(255);
+  stroke(255);
+
+  // Draw edges
+  for (let i = 0; i < edges.length; i++) {
+    let edge = edges[i];
+    let fromNode = nodes[edge.from];
+    let toNode = nodes[edge.to];
+
+    stroke(200, 200, 255);
+    line(fromNode.x, fromNode.y, toNode.x, toNode.y);
+
+    // Draw arrowhead
+    let angle = atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+    let arrowX = toNode.x - 10 * cos(angle);
+    let arrowY = toNode.y - 10 * sin(angle);
+    push();
+    translate(arrowX, arrowY);
+    rotate(angle);
+    fill(200, 200, 255);
+    triangle(0, 0, -5, 5, -5, -5);
+    pop();
+  }
+
+  // Draw nodes
+  for (let i = 0; i < nodes.length; i++) {
+    let node = nodes[i];
+    fill(100, 255, 100);
+    ellipse(node.x, node.y, 30, 30);
+    fill(255);
+    text(node.value, node.x, node.y);
+  }
+
+  // Highlight current step
+  if (step < calculations.length) {
+    let calc = calculations[step];
+    displaySquareAnimation(calc);
+    step++;
+  } else {
+    noLoop(); // Stop the animation when complete
+    fill(200, 50, 50);
+    text("Cycle Complete!", width / 2, height - 50);
+  }
+}
+
+function displaySquareAnimation(calc) {
+  fill(50);
+  rect(50, 50, 900, 200, 10);
+  fill(255);
+  textAlign(LEFT, CENTER);
+
+  let digitSquares = calc.digits.map((digit, i) => `${digit}^2=${calc.squares[i]}`).join(' + ');
+  let displayText = `Number: ${calc.number}\nDigits: ${calc.digits.join(', ')}\nSquares: ${digitSquares}\nSum: ${calc.sum}`;
+  text(displayText, 100, 100);
+}

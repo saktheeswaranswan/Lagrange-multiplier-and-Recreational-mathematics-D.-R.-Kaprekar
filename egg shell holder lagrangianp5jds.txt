@@ -1,0 +1,116 @@
+let squareVertices = [];
+let circles = [];
+let points = [];
+let circleDiameterSlider;
+let numPointsSlider;
+let squareSize = 200; // Fixed square size
+let squareCenter;
+let numPoints = 10; // Default number of evenly spaced points
+let circleDiameter = 50; // Default diameter for circles
+
+function setup() {
+  createCanvas(600, 600);
+
+  // Create a slider to control the maximum diameter of the circles
+  circleDiameterSlider = createSlider(10, squareSize, 50, 1);  // Min size: 10, Max size: squareSize, Default: 50
+  circleDiameterSlider.position(20, height - 100);
+
+  // Create a slider to control the number of points inside the square
+  numPointsSlider = createSlider(5, 20, 10, 1);  // Min: 5 points, Max: 20 points, Default: 10
+  numPointsSlider.position(20, height - 70);
+
+  // Fixed square size and center
+  squareCenter = createVector(300, 300);
+
+  // Log circle areas on startup
+  updateShapes();
+}
+
+function draw() {
+  background(255);
+
+  // Get the current circle diameter and number of points from the sliders
+  circleDiameter = circleDiameterSlider.value();
+  numPoints = numPointsSlider.value();
+
+  // Update the shapes based on the current values from sliders
+  updateShapes();
+
+  // Draw the square (fixed size)
+  fill(200, 200, 255, 100);
+  stroke(0);
+  beginShape();
+  for (let v of squareVertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  // Draw the points inside the square
+  fill(0, 255, 0);
+  noStroke();
+  for (let pt of points) {
+    ellipse(pt.x, pt.y, 5, 5); // Draw green points
+  }
+
+  // Draw the circles centered at each point (green points)
+  fill(255, 0, 0, 150);
+  stroke(0);
+  for (let circle of circles) {
+    ellipse(circle.center.x, circle.center.y, circle.diameter, circle.diameter); // Draw red circles
+  }
+}
+
+// Function to update the square, circles, and points based on slider values
+function updateShapes() {
+  squareVertices = [];
+  circles = [];
+  points = [];
+
+  // Calculate the square's four vertices (fixed square)
+  squareVertices.push(createVector(squareCenter.x - squareSize / 2, squareCenter.y - squareSize / 2)); // top-left
+  squareVertices.push(createVector(squareCenter.x + squareSize / 2, squareCenter.y - squareSize / 2)); // top-right
+  squareVertices.push(createVector(squareCenter.x + squareSize / 2, squareCenter.y + squareSize / 2)); // bottom-right
+  squareVertices.push(createVector(squareCenter.x - squareSize / 2, squareCenter.y + squareSize / 2)); // bottom-left
+
+  // Generate evenly spaced points inside the square (uniform grid)
+  let spacing = squareSize / (numPoints - 1);
+  for (let i = 0; i < numPoints; i++) {
+    for (let j = 0; j < numPoints; j++) {
+      let x = squareCenter.x - squareSize / 2 + i * spacing;
+      let y = squareCenter.y - squareSize / 2 + j * spacing;
+      points.push(createVector(x, y));
+    }
+  }
+
+  // Generate circles with each green point as the center
+  for (let i = 0; i < points.length; i++) {
+    let circleRadius = circleDiameter / 2;
+    let circleCenter = points[i]; // Circle center is the point itself
+
+    // Ensure circles are fully inside the square (i.e., not touching or crossing the square's edges)
+    if (circleCenter.x - circleRadius < squareCenter.x - squareSize / 2 || 
+        circleCenter.x + circleRadius > squareCenter.x + squareSize / 2 || 
+        circleCenter.y - circleRadius < squareCenter.y - squareSize / 2 || 
+        circleCenter.y + circleRadius > squareCenter.y + squareSize / 2) {
+      continue; // Skip circles that would extend beyond the square's boundaries
+    }
+
+    let circleArea = calculateCircleArea(circleRadius);
+    
+    // Log the circle area in the console
+    console.log("Circle Center: (" + circleCenter.x.toFixed(2) + ", " + circleCenter.y.toFixed(2) + "), Diameter: " + circleDiameter + ", Area: " + circleArea.toFixed(2));
+
+    // Store each circle's properties
+    circles.push({
+      center: circleCenter,
+      radius: circleRadius,
+      diameter: circleDiameter,
+      area: circleArea
+    });
+  }
+}
+
+// Function to calculate the area of a circle
+function calculateCircleArea(radius) {
+  return PI * radius * radius;
+}

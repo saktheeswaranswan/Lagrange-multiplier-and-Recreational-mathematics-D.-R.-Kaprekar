@@ -1,0 +1,55 @@
+let circleRadius = 100; // Fixed circle radius
+let squareSideLength;
+let circleCenter;
+let squareCenter;
+let squareArea;
+let sideLengthSlider;
+
+function setup() {
+  createCanvas(600, 600);
+
+  // Create a slider to control the square's side length
+  sideLengthSlider = createSlider(0, circleRadius * sqrt(2), circleRadius, 1);  // Min: 0, Max: diagonal length of square inscribed in the circle
+  sideLengthSlider.position(20, height - 100);
+
+  // Set the circle's center at the middle of the canvas
+  circleCenter = createVector(width / 2, height / 2);
+}
+
+function draw() {
+  background(255);
+
+  // Get the current side length of the square from the slider
+  let sideLength = sideLengthSlider.value();
+  
+  // Calculate the area of the square
+  squareArea = sideLength * sideLength;
+
+  // Draw the fixed circle
+  fill(200, 200, 255, 100);
+  stroke(0);
+  ellipse(circleCenter.x, circleCenter.y, circleRadius * 2, circleRadius * 2);
+
+  // Calculate the top-left corner of the square (centered within the circle)
+  let halfSide = sideLength / 2;
+
+  // Ensure the square is within the circle by keeping its diagonal <= diameter of circle
+  if (sideLength * sqrt(2) <= circleRadius * 2) {
+    fill(0, 255, 0, 100);
+    stroke(0);
+    beginShape();
+    vertex(circleCenter.x - halfSide, circleCenter.y - halfSide);
+    vertex(circleCenter.x + halfSide, circleCenter.y - halfSide);
+    vertex(circleCenter.x + halfSide, circleCenter.y + halfSide);
+    vertex(circleCenter.x - halfSide, circleCenter.y + halfSide);
+    endShape(CLOSE);
+  }
+
+  // Display square area and other information
+  fill(0);
+  textSize(16);
+  textAlign(LEFT, TOP);
+  text("Circle Radius: " + circleRadius, 20, height - 150);
+  text("Square Side Length: " + sideLength.toFixed(2), 20, height - 130);
+  text("Square Area: " + squareArea.toFixed(2), 20, height - 110);
+}
