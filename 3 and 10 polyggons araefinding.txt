@@ -1,0 +1,4779 @@
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+  
+  // Display areas before and after alterations
+  displayArea(innerPolygonVertices, "Inner Polygon Area: " + calculateArea(innerPolygonVertices));
+  displayArea(middlePolygonVertices, "Middle Polygon Area: " + calculateArea(middlePolygonVertices));
+  displayArea(outerPolygonVertices, "Outer Polygon Area: " + calculateArea(outerPolygonVertices));
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function displayArea(vertices, label) {
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y,Area\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y},${calculateArea(innerPolygonVertices)}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y},${calculateArea(middlePolygonVertices)}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y},${calculateArea(outerPolygonVertices)}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons_with_areas.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+let polygons = [];
+let draggingVertex = -1;
+
+let sideSliders = [];
+let scaleSliders = [];
+
+let polygonCenter;
+
+function setup() {
+  createCanvas(1000, 800);
+  
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Create sliders for controlling the number of sides and scale for 10 polygons
+  for (let i = 0; i < 10; i++) {
+    // Sliders for sides
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, height - 240 - (i * 30));
+    sideSliders[i] = createSlider(3, 100, 6, 1);
+    sideSliders[i].position(150, height - 240 - (i * 30));
+    sideSliders[i].input(() => updatePolygon(i));
+
+    // Sliders for scale factor
+    createDiv(`Polygon ${i + 1} Scale:`).position(200, height - 240 - (i * 30));
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+    scaleSliders[i].position(350, height - 240 - (i * 30));
+    scaleSliders[i].input(() => scalePolygon(i));
+    
+    // Initialize the polygons with default values
+    polygons.push({
+      vertices: generatePolygonVertices(i),
+      sides: sideSliders[i].value(),
+      scale: scaleSliders[i].value()
+    });
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw each polygon
+  for (let i = 0; i < polygons.length; i++) {
+    drawPolygon(polygons[i].vertices, color(random(255), random(255), random(255), 150));
+  }
+}
+
+function drawPolygon(vertices, fillColor) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+}
+
+function generatePolygonVertices(polygonIndex) {
+  let numSides = sideSliders[polygonIndex].value();
+  let radius = 300 / 2;
+  let vertices = [];
+  
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  
+  return vertices;
+}
+
+function updatePolygon(index) {
+  polygons[index].vertices = generatePolygonVertices(index);
+}
+
+function scalePolygon(index) {
+  let scaleFactor = scaleSliders[index].value();
+  let vertices = polygons[index].vertices;
+  
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function mousePressed() {
+  draggingVertex = checkVertexClick();
+}
+
+function checkVertexClick() {
+  for (let p = 0; p < polygons.length; p++) {
+    for (let i = 0; i < polygons[p].vertices.length; i++) {
+      if (dist(mouseX, mouseY, polygons[p].vertices[i].x, polygons[p].vertices[i].y) < 10) {
+        return { polygonIndex: p, vertexIndex: i };
+      }
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingVertex !== -1) {
+    let polygon = polygons[draggingVertex.polygonIndex];
+    polygon.vertices[draggingVertex.vertexIndex].x = mouseX;
+    polygon.vertices[draggingVertex.vertexIndex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingVertex = -1;
+}
+
+
+
+
+
+let polygons = [];
+let draggingVertex = -1;
+
+let sideSliders = [];
+let scaleSliders = [];
+
+let polygonCenter;
+
+function setup() {
+  createCanvas(1000, 800);
+  
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Create sliders for controlling the number of sides and scale for 10 polygons
+  for (let i = 0; i < 10; i++) {
+    // Sliders for sides
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, height - 240 - (i * 30));
+    sideSliders[i] = createSlider(3, 100, 6, 1);
+    sideSliders[i].position(150, height - 240 - (i * 30));
+    sideSliders[i].input(() => updatePolygon(i));
+
+    // Sliders for scale factor
+    createDiv(`Polygon ${i + 1} Scale:`).position(200, height - 240 - (i * 30));
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+    scaleSliders[i].position(350, height - 240 - (i * 30));
+    scaleSliders[i].input(() => scalePolygon(i));
+    
+    // Initialize the polygons with default values
+    polygons.push({
+      vertices: generatePolygonVertices(i),
+      sides: sideSliders[i].value(),
+      scale: scaleSliders[i].value()
+    });
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw each polygon
+  for (let i = 0; i < polygons.length; i++) {
+    drawPolygon(polygons[i].vertices, color(random(255), random(255), random(255), 150));
+  }
+}
+
+function drawPolygon(vertices, fillColor) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+}
+
+function generatePolygonVertices(polygonIndex) {
+  let numSides = sideSliders[polygonIndex].value();
+  let radius = 300 / 2;
+  let vertices = [];
+  
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  
+  return vertices;
+}
+
+function updatePolygon(index) {
+  polygons[index].vertices = generatePolygonVertices(index);
+}
+
+function scalePolygon(index) {
+  let scaleFactor = scaleSliders[index].value();
+  let vertices = polygons[index].vertices;
+  
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function mousePressed() {
+  draggingVertex = checkVertexClick();
+}
+
+function checkVertexClick() {
+  for (let p = 0; p < polygons.length; p++) {
+    for (let i = 0; i < polygons[p].vertices.length; i++) {
+      if (dist(mouseX, mouseY, polygons[p].vertices[i].x, polygons[p].vertices[i].y) < 10) {
+        return { polygonIndex: p, vertexIndex: i };
+      }
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingVertex !== -1) {
+    let polygon = polygons[draggingVertex.polygonIndex];
+    polygon.vertices[draggingVertex.vertexIndex].x = mouseX;
+    polygon.vertices[draggingVertex.vertexIndex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingVertex = -1;
+}
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons.csv';
+  link.click();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+let exportButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Button for exporting data
+  exportButton = createButton('Export Polygons to CSV');
+  exportButton.position(20, height - 30);
+  exportButton.mousePressed(exportToCSV);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150), "Inner Polygon");
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150), "Middle Polygon");
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150), "Outer Polygon");
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  let centroid = getCentroid(vertices);
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y - 20);
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value(), innerScaleSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value(), middleScaleSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value(), outerScaleSlider.value());
+}
+
+function generatePolygonVertices(numSides, scaleFactor = 1) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}
+
+// Function to export vertices to CSV
+function exportToCSV() {
+  let csvData = "Polygon,Vertex,X,Y\n";
+  
+  // Inner polygon
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    csvData += `Inner Polygon,${i + 1},${innerPolygonVertices[i].x},${innerPolygonVertices[i].y}\n`;
+  }
+  
+  // Middle polygon
+  for (let i = 0; i < middlePolygonVertices.length; i++) {
+    csvData += `Middle Polygon,${i + 1},${middlePolygonVertices[i].x},${middlePolygonVertices[i].y}\n`;
+  }
+  
+  // Outer polygon
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    csvData += `Outer Polygon,${i + 1},${outerPolygonVertices[i].x},${outerPolygonVertices[i].y}\n`;
+  }
+
+  // Create a Blob for the CSV data and create a download link
+  let blob = new Blob([csvData], { type: 'text/csv' });
+  let link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'polygons.csv';
+  link.click();
+}

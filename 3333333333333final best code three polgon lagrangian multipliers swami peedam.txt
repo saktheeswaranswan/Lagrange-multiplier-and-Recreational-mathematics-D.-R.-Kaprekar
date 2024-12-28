@@ -1,0 +1,153 @@
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let middlePolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let draggingMiddleVertex = -1;
+
+let innerSidesSlider, outerSidesSlider, middleSidesSlider;
+let innerScaleSlider, outerScaleSlider, middleScaleSlider;
+let polygonCenter;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 210);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 210);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Middle Polygon Sides:").position(20, height - 180);
+  middleSidesSlider = createSlider(3, 100, 6, 1);
+  middleSidesSlider.position(150, height - 180);
+  middleSidesSlider.input(updateMiddlePolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 150);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 150);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 120);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 120);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Middle Scale Factor:").position(20, height - 90);
+  middleScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  middleScaleSlider.position(150, height - 90);
+  middleScaleSlider.input(scaleMiddlePolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 60);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 60);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  updateInnerPolygon();
+  updateMiddlePolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  drawPolygon(innerPolygonVertices, color(0, 0, 255, 150));
+  drawPolygon(middlePolygonVertices, color(0, 255, 0, 150));
+  drawPolygon(outerPolygonVertices, color(255, 0, 0, 150));
+}
+
+function drawPolygon(vertices, fillColor) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = generatePolygonVertices(innerSidesSlider.value());
+}
+
+function updateMiddlePolygon() {
+  middlePolygonVertices = generatePolygonVertices(middleSidesSlider.value());
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = generatePolygonVertices(outerSidesSlider.value());
+}
+
+function generatePolygonVertices(numSides) {
+  let vertices = [];
+  let radius = 300 / 2;
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(polygonCenter.x + radius * cos(angle), polygonCenter.y + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function scaleInnerPolygon() {
+  scalePolygon(innerPolygonVertices, innerScaleSlider.value());
+}
+
+function scaleMiddlePolygon() {
+  scalePolygon(middlePolygonVertices, middleScaleSlider.value());
+}
+
+function scaleOuterPolygon() {
+  scalePolygon(outerPolygonVertices, outerScaleSlider.value());
+}
+
+function scalePolygon(vertices, scaleFactor) {
+  for (let i = 0; i < vertices.length; i++) {
+    vertices[i].x = polygonCenter.x + (vertices[i].x - polygonCenter.x) * scaleFactor;
+    vertices[i].y = polygonCenter.y + (vertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+}
+
+function mousePressed() {
+  draggingInnerVertex = checkVertexClick(innerPolygonVertices);
+  draggingMiddleVertex = checkVertexClick(middlePolygonVertices);
+  draggingOuterVertex = checkVertexClick(outerPolygonVertices);
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+  }
+  if (draggingMiddleVertex !== -1) {
+    middlePolygonVertices[draggingMiddleVertex].x = mouseX;
+    middlePolygonVertices[draggingMiddleVertex].y = mouseY;
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+  }
+}
+
+function mouseReleased() {
+  draggingInnerVertex = -1;
+  draggingMiddleVertex = -1;
+  draggingOuterVertex = -1;
+}

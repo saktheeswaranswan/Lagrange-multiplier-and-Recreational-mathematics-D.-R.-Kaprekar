@@ -1,0 +1,3994 @@
+let polygonVertices = [];
+let draggingPolygon = -1;
+let draggingVertex = -1;
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSlider, scaleSlider;
+let polygonCount = 10;
+let polygonCenter;
+
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Create sliders for controlling the number of sides and scaling
+  createDiv("Sides per Polygon:").position(20, height - 250);
+  sidesSlider = createSlider(3, 100, 6, 1);
+  sidesSlider.position(150, height - 250);
+  sidesSlider.input(updatePolygons);
+
+  createDiv("Scale Factor:").position(20, height - 220);
+  scaleSlider = createSlider(0.5, 2, 1, 0.01);
+  scaleSlider.position(150, height - 220);
+  scaleSlider.input(updatePolygons);
+
+  // Button to randomize the positions of polygons
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+
+  // Initialize polygons
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices.push(generatePolygonVertices(sidesSlider.value(), scaleSlider.value()));
+    polygonCenters.push(getCentroid(polygonVertices[i]));
+    polygonAreas.push(calculateArea(polygonVertices[i]));
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+  }
+
+  // Display area and centroid
+  for (let i = 0; i < polygonCount; i++) {
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygons() {
+  // Update all polygons based on new slider values
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices[i] = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingVertex = -1;
+  for (let i = 0; i < polygonCount; i++) {
+    let vertexIndex = checkVertexClick(polygonVertices[i]);
+    if (vertexIndex !== -1) {
+      draggingPolygon = i;
+      draggingVertex = vertexIndex;
+      break;
+    }
+  }
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingVertex !== -1) {
+    polygonVertices[draggingPolygon][draggingVertex].x = mouseX;
+    polygonVertices[draggingPolygon][draggingVertex].y = mouseY;
+
+    // Recalculate centroid and area after dragging
+    polygonCenters[draggingPolygon] = getCentroid(polygonVertices[draggingPolygon]);
+    polygonAreas[draggingPolygon] = calculateArea(polygonVertices[draggingPolygon]);
+  }
+}
+
+function mouseReleased() {
+  draggingVertex = -1;
+  draggingPolygon = -1;
+}
+
+// Randomize the positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+
+  // Randomize button to move polygons to random positions
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+// Function to randomize positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+
+  // Randomize button to move polygons to random positions
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+// Function to randomize positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+
+  // Randomize button to move polygons to random positions
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+// Function to randomize positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let draggingPolygon = -1;
+let draggingVertex = -1;
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSlider, scaleSlider;
+let polygonCount = 10;
+let polygonCenter;
+
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Create sliders for controlling the number of sides and scaling
+  createDiv("Sides per Polygon:").position(20, height - 250);
+  sidesSlider = createSlider(3, 100, 6, 1);
+  sidesSlider.position(150, height - 250);
+  sidesSlider.input(updatePolygons);
+
+  createDiv("Scale Factor:").position(20, height - 220);
+  scaleSlider = createSlider(0.5, 2, 1, 0.01);
+  scaleSlider.position(150, height - 220);
+  scaleSlider.input(updatePolygons);
+
+  // Button to randomize the positions of polygons
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+
+  // Initialize polygons
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices.push(generatePolygonVertices(sidesSlider.value(), scaleSlider.value()));
+    polygonCenters.push(getCentroid(polygonVertices[i]));
+    polygonAreas.push(calculateArea(polygonVertices[i]));
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+  }
+
+  // Display area and centroid
+  for (let i = 0; i < polygonCount; i++) {
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygons() {
+  // Update all polygons based on new slider values
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices[i] = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingVertex = -1;
+  for (let i = 0; i < polygonCount; i++) {
+    let vertexIndex = checkVertexClick(polygonVertices[i]);
+    if (vertexIndex !== -1) {
+      draggingPolygon = i;
+      draggingVertex = vertexIndex;
+      break;
+    }
+  }
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingVertex !== -1) {
+    polygonVertices[draggingPolygon][draggingVertex].x = mouseX;
+    polygonVertices[draggingPolygon][draggingVertex].y = mouseY;
+
+    // Recalculate centroid and area after dragging
+    polygonCenters[draggingPolygon] = getCentroid(polygonVertices[draggingPolygon]);
+    polygonAreas[draggingPolygon] = calculateArea(polygonVertices[draggingPolygon]);
+  }
+}
+
+function mouseReleased() {
+  draggingVertex = -1;
+  draggingPolygon = -1;
+}
+
+// Randomize the positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let draggingPolygon = -1;
+let draggingVertex = -1;
+let polygonCenters = [];
+let polygonAreas = [];
+
+let sidesSlider, scaleSlider;
+let polygonCount = 10;
+let polygonCenter;
+
+let randomizeButton;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  polygonCenter = createVector(width / 2, height / 2);
+
+  // Create sliders for controlling the number of sides and scaling
+  createDiv("Sides per Polygon:").position(20, height - 250);
+  sidesSlider = createSlider(3, 100, 6, 1);
+  sidesSlider.position(150, height - 250);
+  sidesSlider.input(updatePolygons);
+
+  createDiv("Scale Factor:").position(20, height - 220);
+  scaleSlider = createSlider(0.5, 2, 1, 0.01);
+  scaleSlider.position(150, height - 220);
+  scaleSlider.input(updatePolygons);
+
+  // Button to randomize the positions of polygons
+  randomizeButton = createButton('Randomize Polygons');
+  randomizeButton.position(20, height - 30);
+  randomizeButton.mousePressed(randomizePolygons);
+
+  // Initialize polygons
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices.push(generatePolygonVertices(sidesSlider.value(), scaleSlider.value()));
+    polygonCenters.push(getCentroid(polygonVertices[i]));
+    polygonAreas.push(calculateArea(polygonVertices[i]));
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+  }
+
+  // Display area and centroid
+  for (let i = 0; i < polygonCount; i++) {
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygons() {
+  // Update all polygons based on new slider values
+  for (let i = 0; i < polygonCount; i++) {
+    polygonVertices[i] = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  draggingVertex = -1;
+  for (let i = 0; i < polygonCount; i++) {
+    let vertexIndex = checkVertexClick(polygonVertices[i]);
+    if (vertexIndex !== -1) {
+      draggingPolygon = i;
+      draggingVertex = vertexIndex;
+      break;
+    }
+  }
+}
+
+function checkVertexClick(vertices) {
+  for (let i = 0; i < vertices.length; i++) {
+    if (dist(mouseX, mouseY, vertices[i].x, vertices[i].y) < 10) {
+      return i;  // return index of the vertex that was clicked
+    }
+  }
+  return -1;
+}
+
+function mouseDragged() {
+  if (draggingVertex !== -1) {
+    polygonVertices[draggingPolygon][draggingVertex].x = mouseX;
+    polygonVertices[draggingPolygon][draggingVertex].y = mouseY;
+
+    // Recalculate centroid and area after dragging
+    polygonCenters[draggingPolygon] = getCentroid(polygonVertices[draggingPolygon]);
+    polygonAreas[draggingPolygon] = calculateArea(polygonVertices[draggingPolygon]);
+  }
+}
+
+function mouseReleased() {
+  draggingVertex = -1;
+  draggingPolygon = -1;
+}
+
+// Randomize the positions of all polygons
+function randomizePolygons() {
+  for (let i = 0; i < polygonCount; i++) {
+    let newVertices = generatePolygonVertices(sidesSlider.value(), scaleSlider.value());
+    polygonVertices[i] = newVertices;
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        vertices[i].x = mouseX;
+        vertices[i].y = mouseY;
+        polygonCenters[index] = getCentroid(vertices); // Recalculate centroid after dragging
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        vertices[i].x = mouseX;
+        vertices[i].y = mouseY;
+        polygonCenters[index] = getCentroid(vertices); // Recalculate centroid after dragging
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        vertices[i].x = mouseX;
+        vertices[i].y = mouseY;
+        polygonCenters[index] = getCentroid(vertices); // Recalculate centroid after dragging
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        vertices[i].x = mouseX;
+        vertices[i].y = mouseY;
+        polygonCenters[index] = getCentroid(vertices); // Recalculate centroid after dragging
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+v
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        originalCentroid = polygonCenters[i]; // Store the original centroid position
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        let deltaX = mouseX - polygonCenters[index].x;
+        let deltaY = mouseY - polygonCenters[index].y;
+
+        // Translate the polygon while keeping the centroid fixed
+        let translation = createVector(deltaX, deltaY);
+
+        // Update each vertex position
+        vertices.forEach((v, j) => {
+          let centroidToVertex = createVector(v.x - originalCentroid.x, v.y - originalCentroid.y);
+          centroidToVertex.add(translation);
+          v.x = originalCentroid.x + centroidToVertex.x;
+          v.y = originalCentroid.y + centroidToVertex.y;
+        });
+
+        // Update the centroid
+        polygonCenters[index] = getCentroid(vertices);
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        originalCentroid = polygonCenters[i]; // Store the original centroid position
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        let deltaX = mouseX - polygonCenters[index].x;
+        let deltaY = mouseY - polygonCenters[index].y;
+
+        // Translate the polygon while keeping the centroid fixed
+        let translation = createVector(deltaX, deltaY);
+
+        // Update each vertex position
+        vertices.forEach((v, j) => {
+          let centroidToVertex = createVector(v.x - originalCentroid.x, v.y - originalCentroid.y);
+          centroidToVertex.add(translation);
+          v.x = originalCentroid.x + centroidToVertex.x;
+          v.y = originalCentroid.y + centroidToVertex.y;
+        });
+
+        // Update the centroid
+        polygonCenters[index] = getCentroid(vertices);
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        originalCentroid = polygonCenters[i]; // Store the original centroid position
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        let deltaX = mouseX - polygonCenters[index].x;
+        let deltaY = mouseY - polygonCenters[index].y;
+
+        // Translate the polygon while keeping the centroid fixed
+        let translation = createVector(deltaX, deltaY);
+
+        // Update each vertex position
+        vertices.forEach((v, j) => {
+          let centroidToVertex = createVector(v.x - originalCentroid.x, v.y - originalCentroid.y);
+          centroidToVertex.add(translation);
+          v.x = originalCentroid.x + centroidToVertex.x;
+          v.y = originalCentroid.y + centroidToVertex.y;
+        });
+
+        // Update the centroid
+        polygonCenters[index] = getCentroid(vertices);
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        originalCentroid = polygonCenters[i]; // Store the original centroid position
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        let deltaX = mouseX - polygonCenters[index].x;
+        let deltaY = mouseY - polygonCenters[index].y;
+
+        // Translate the polygon while keeping the centroid fixed
+        let translation = createVector(deltaX, deltaY);
+
+        // Update each vertex position
+        vertices.forEach((v, j) => {
+          let centroidToVertex = createVector(v.x - originalCentroid.x, v.y - originalCentroid.y);
+          centroidToVertex.add(translation);
+          v.x = originalCentroid.x + centroidToVertex.x;
+          v.y = originalCentroid.y + centroidToVertex.y;
+        });
+
+        // Update the centroid
+        polygonCenters[index] = getCentroid(vertices);
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 10, 10);
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any vertex to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {
+        isDragging = true;
+        draggedVertex = j;
+        originalCentroid = polygonCenters[i]; // Store the original centroid position
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging) {
+    // Move the dragged vertex
+    polygonVertices.forEach((vertices, index) => {
+      if (index === Math.floor(draggedVertex / sidesSliders[index].value())) {
+        let i = draggedVertex % sidesSliders[index].value();
+        let deltaX = mouseX - polygonCenters[index].x;
+        let deltaY = mouseY - polygonCenters[index].y;
+
+        // Translate the polygon while keeping the centroid fixed
+        let translation = createVector(deltaX, deltaY);
+
+        // Update each vertex position
+        vertices.forEach((v, j) => {
+          let centroidToVertex = createVector(v.x - originalCentroid.x, v.y - originalCentroid.y);
+          centroidToVertex.add(translation);
+          v.x = originalCentroid.x + centroidToVertex.x;
+          v.y = originalCentroid.y + centroidToVertex.y;
+        });
+
+        // Update the centroid
+        polygonCenters[index] = getCentroid(vertices);
+        polygonAreas[index] = calculateArea(vertices); // Recalculate area after dragging
+      }
+    });
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+
+
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw centroid in red (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    // Move the dragged polygon based on the difference in centroid position
+    let deltaX = mouseX - originalCentroid.x;
+    let deltaY = mouseY - originalCentroid.y;
+    
+    // Update each vertex position to move the polygon
+    polygonVertices[draggedPolygon].forEach(v => {
+      v.x += deltaX;
+      v.y += deltaY;
+    });
+
+    // Update the centroid and area after dragging
+    polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+    polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+    
+    // Update the original centroid for the next movement
+    originalCentroid = polygonCenters[draggedPolygon].copy();
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  originalCentroid = null;
+}
+
+
+
+let polygonVertices = [];
+let polygonCenters = [];
+let polygonAreas = [];
+let isDragging = false;
+let draggedPolygon = -1;
+let draggedVertex = -1;
+let originalCentroid = null;
+
+let sidesSliders = [];
+let scaleSliders = [];
+let polygonCount = 10;
+
+function setup() {
+  createCanvas(1000, 800);
+
+  // Initialize sliders for each polygon
+  for (let i = 0; i < polygonCount; i++) {
+    sidesSliders[i] = createSlider(3, 100, 6, 1);
+    scaleSliders[i] = createSlider(0.5, 2, 1, 0.01);
+
+    // Position sliders for each polygon on the canvas
+    createDiv(`Polygon ${i + 1} Sides:`).position(20, 30 + i * 60);
+    sidesSliders[i].position(150, 30 + i * 60);
+
+    createDiv(`Polygon ${i + 1} Scale:`).position(20, 60 + i * 60);
+    scaleSliders[i].position(150, 60 + i * 60);
+
+    // Update polygons when sliders are changed
+    sidesSliders[i].input(() => updatePolygon(i));
+    scaleSliders[i].input(() => updatePolygon(i));
+
+    // Initialize each polygon
+    polygonVertices[i] = generatePolygonVertices(sidesSliders[i].value(), scaleSliders[i].value());
+    polygonCenters[i] = getCentroid(polygonVertices[i]);
+    polygonAreas[i] = calculateArea(polygonVertices[i]);
+  }
+}
+
+function draw() {
+  background(255);
+
+  // Draw all polygons and their areas
+  for (let i = 0; i < polygonCount; i++) {
+    let fillColor = color(random(255), random(255), random(255), 150); // Random colors for polygons
+    drawPolygon(polygonVertices[i], fillColor, `Polygon ${i + 1}`);
+    displayArea(polygonVertices[i], `Area: ${polygonAreas[i]}`, polygonCenters[i]);
+  }
+}
+
+function drawPolygon(vertices, fillColor, label) {
+  fill(fillColor);
+  stroke(0);
+  beginShape();
+  for (let v of vertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  // Draw black corner points
+  fill(0);
+  noStroke();
+  for (let v of vertices) {
+    ellipse(v.x, v.y, 10, 10);  // Draw corner points
+  }
+
+  // Draw label near the polygon
+  textSize(16);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  let centroid = getCentroid(vertices);
+  text(label, centroid.x, centroid.y - 20);
+
+  // Draw red centroid (larger than corner points)
+  fill(255, 0, 0);
+  ellipse(centroid.x, centroid.y, 20, 20);  // Larger red centroid
+}
+
+function displayArea(vertices, label, centroid) {
+  textSize(14);
+  textAlign(CENTER, CENTER);
+  fill(0);
+  text(label, centroid.x, centroid.y + 20); // Display area below the centroid
+}
+
+function updatePolygon(index) {
+  // Update the vertices, centroid, and area for the specified polygon
+  polygonVertices[index] = generatePolygonVertices(sidesSliders[index].value(), scaleSliders[index].value());
+  polygonCenters[index] = getCentroid(polygonVertices[index]);
+  polygonAreas[index] = calculateArea(polygonVertices[index]);
+}
+
+function generatePolygonVertices(numSides, scaleFactor) {
+  let vertices = [];
+  let radius = 300 / 2 * scaleFactor;
+  let centerX = random(100, width - 100);
+  let centerY = random(100, height - 100);
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    vertices.push(createVector(centerX + radius * cos(angle), centerY + radius * sin(angle)));
+  }
+  return vertices;
+}
+
+function getCentroid(vertices) {
+  let x = 0, y = 0;
+  for (let v of vertices) {
+    x += v.x;
+    y += v.y;
+  }
+  return createVector(x / vertices.length, y / vertices.length);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let j = (i + 1) % n;
+    area += vertices[i].x * vertices[j].y;
+    area -= vertices[i].y * vertices[j].x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  // Check if we clicked on any centroid to start dragging
+  for (let i = 0; i < polygonCount; i++) {
+    let centroid = polygonCenters[i];
+    let d = dist(mouseX, mouseY, centroid.x, centroid.y);
+    if (d < 20) {  // Larger click area for the centroid
+      isDragging = true;
+      draggedPolygon = i;
+      originalCentroid = centroid.copy();  // Store the original centroid position
+      break;
+    }
+    // Check if we clicked on any corner vertex
+    for (let j = 0; j < polygonVertices[i].length; j++) {
+      let v = polygonVertices[i][j];
+      let d = dist(mouseX, mouseY, v.x, v.y);
+      if (d < 10) {  // Clicked on a corner point
+        isDragging = true;
+        draggedPolygon = i;
+        draggedVertex = j;
+        break;
+      }
+    }
+  }
+}
+
+function mouseDragged() {
+  if (isDragging && draggedPolygon >= 0) {
+    if (draggedVertex >= 0) {
+      // Move the dragged vertex
+      polygonVertices[draggedPolygon][draggedVertex].x = mouseX;
+      polygonVertices[draggedPolygon][draggedVertex].y = mouseY;
+    } else {
+      // Move the dragged polygon based on the difference in centroid position
+      let deltaX = mouseX - originalCentroid.x;
+      let deltaY = mouseY - originalCentroid.y;
+      
+      // Update each vertex position to move the polygon
+      polygonVertices[draggedPolygon].forEach(v => {
+        v.x += deltaX;
+        v.y += deltaY;
+      });
+
+      // Update the centroid and area after dragging
+      polygonCenters[draggedPolygon] = getCentroid(polygonVertices[draggedPolygon]);
+      polygonAreas[draggedPolygon] = calculateArea(polygonVertices[draggedPolygon]);
+      
+      // Update the original centroid for the next movement
+      originalCentroid = polygonCenters[draggedPolygon].copy();
+    }
+  }
+}
+
+function mouseReleased() {
+  isDragging = false;
+  draggedPolygon = -1;
+  draggedVertex = -1;
+  originalCentroid = null;
+}
