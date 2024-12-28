@@ -1,0 +1,268 @@
+let innerPolygonVertices = [];
+let outerPolygonVertices = [];
+let previousInnerPolygonVertices = [];
+let previousOuterPolygonVertices = [];
+let draggingInnerVertex = -1;
+let draggingOuterVertex = -1;
+let innerSidesSlider, outerSidesSlider, innerScaleSlider, outerScaleSlider;
+let innerPolygonAreaBefore = 0, innerPolygonAreaAfter = 0;
+let outerPolygonAreaBefore = 0, outerPolygonAreaAfter = 0;
+let polygonDiameter = 300;
+let polygonCenter;
+
+function setup() {
+  createCanvas(800, 800);
+
+  // Sliders for controlling the number of sides
+  createDiv("Inner Polygon Sides:").position(20, height - 140);
+  innerSidesSlider = createSlider(3, 100, 6, 1);
+  innerSidesSlider.position(150, height - 140);
+  innerSidesSlider.input(updateInnerPolygon);
+
+  createDiv("Outer Polygon Sides:").position(20, height - 110);
+  outerSidesSlider = createSlider(3, 100, 6, 1);
+  outerSidesSlider.position(150, height - 110);
+  outerSidesSlider.input(updateOuterPolygon);
+
+  // Sliders for scaling
+  createDiv("Inner Scale Factor:").position(20, height - 80);
+  innerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  innerScaleSlider.position(150, height - 80);
+  innerScaleSlider.input(scaleInnerPolygon);
+
+  createDiv("Outer Scale Factor:").position(20, height - 50);
+  outerScaleSlider = createSlider(0.5, 2, 1, 0.01);
+  outerScaleSlider.position(150, height - 50);
+  outerScaleSlider.input(scaleOuterPolygon);
+
+  // Buttons to save CSV
+  let saveInnerButton = createButton("Save Inner CSV");
+  saveInnerButton.position(400, height - 90);
+  saveInnerButton.mousePressed(saveInnerCSV);
+
+  let saveOuterButton = createButton("Save Outer CSV");
+  saveOuterButton.position(400, height - 60);
+  saveOuterButton.mousePressed(saveOuterCSV);
+
+  polygonCenter = createVector(width / 2, height / 2);
+  updateInnerPolygon();
+  updateOuterPolygon();
+}
+
+function draw() {
+  background(255);
+
+  // Draw the inner polygon
+  fill(0, 0, 255, 150);
+  stroke(0);
+  beginShape();
+  for (let v of innerPolygonVertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  // Draw the outer polygon
+  fill(255, 0, 0, 150);
+  stroke(0);
+  beginShape();
+  for (let v of outerPolygonVertices) {
+    vertex(v.x, v.y);
+  }
+  endShape(CLOSE);
+
+  // Draw points for vertices
+  fill(0);
+  noStroke();
+  for (let v of innerPolygonVertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+  for (let v of outerPolygonVertices) {
+    ellipse(v.x, v.y, 10, 10);
+  }
+
+  // Display information on canvas
+  fill(0);
+  textSize(16);
+  text(`Inner Polygon Area (Before): ${innerPolygonAreaBefore.toFixed(2)} units²`, 20, height - 200);
+  text(`Inner Polygon Area (After): ${innerPolygonAreaAfter.toFixed(2)} units²`, 20, height - 180);
+  text(`Outer Polygon Area (Before): ${outerPolygonAreaBefore.toFixed(2)} units²`, 20, height - 160);
+  text(`Outer Polygon Area (After): ${outerPolygonAreaAfter.toFixed(2)} units²`, 20, height - 140);
+  text(`Inner Scale Factor: ${innerScaleSlider.value().toFixed(2)}`, 20, height - 80);
+  text(`Outer Scale Factor: ${outerScaleSlider.value().toFixed(2)}`, 20, height - 50);
+
+  // Display coordinate tables
+  displayCoordinateTable();
+}
+
+function updateInnerPolygon() {
+  innerPolygonVertices = [];
+  previousInnerPolygonVertices = [];
+  let numSides = innerSidesSlider.value();
+  let radius = polygonDiameter / 2;
+
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    let x = polygonCenter.x + radius * cos(angle);
+    let y = polygonCenter.y + radius * sin(angle);
+    innerPolygonVertices.push(createVector(x, y));
+    previousInnerPolygonVertices.push(createVector(x, y));
+  }
+  calculateInnerPolygonAreas();
+}
+
+function updateOuterPolygon() {
+  outerPolygonVertices = [];
+  previousOuterPolygonVertices = [];
+  let numSides = outerSidesSlider.value();
+  let radius = polygonDiameter / 2;
+
+  for (let i = 0; i < numSides; i++) {
+    let angle = map(i, 0, numSides, 0, TWO_PI);
+    let x = polygonCenter.x + radius * cos(angle);
+    let y = polygonCenter.y + radius * sin(angle);
+    outerPolygonVertices.push(createVector(x, y));
+    previousOuterPolygonVertices.push(createVector(x, y));
+  }
+  calculateOuterPolygonAreas();
+}
+
+function calculateInnerPolygonAreas() {
+  innerPolygonAreaBefore = calculateArea(previousInnerPolygonVertices);
+  innerPolygonAreaAfter = calculateArea(innerPolygonVertices);
+}
+
+function calculateOuterPolygonAreas() {
+  outerPolygonAreaBefore = calculateArea(previousOuterPolygonVertices);
+  outerPolygonAreaAfter = calculateArea(outerPolygonVertices);
+}
+
+function calculateArea(vertices) {
+  let area = 0;
+  let n = vertices.length;
+  for (let i = 0; i < n; i++) {
+    let current = vertices[i];
+    let next = vertices[(i + 1) % n];
+    area += current.x * next.y - current.y * next.x;
+  }
+  return abs(area) / 2;
+}
+
+function mousePressed() {
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    if (dist(mouseX, mouseY, innerPolygonVertices[i].x, innerPolygonVertices[i].y) < 10) {
+      draggingInnerVertex = i;
+      break;
+    }
+  }
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    if (dist(mouseX, mouseY, outerPolygonVertices[i].x, outerPolygonVertices[i].y) < 10) {
+      draggingOuterVertex = i;
+      break;
+    }
+  }
+}
+
+function mouseDragged() {
+  if (draggingInnerVertex !== -1) {
+    innerPolygonVertices[draggingInnerVertex].x = mouseX;
+    innerPolygonVertices[draggingInnerVertex].y = mouseY;
+    calculateInnerPolygonAreas();
+  }
+  if (draggingOuterVertex !== -1) {
+    outerPolygonVertices[draggingOuterVertex].x = mouseX;
+    outerPolygonVertices[draggingOuterVertex].y = mouseY;
+    calculateOuterPolygonAreas();
+  }
+}
+
+function mouseReleased() {
+  if (draggingInnerVertex !== -1) {
+    previousInnerPolygonVertices[draggingInnerVertex] = innerPolygonVertices[draggingInnerVertex].copy();
+    draggingInnerVertex = -1;
+  }
+  if (draggingOuterVertex !== -1) {
+    previousOuterPolygonVertices[draggingOuterVertex] = outerPolygonVertices[draggingOuterVertex].copy();
+    draggingOuterVertex = -1;
+  }
+}
+
+function scaleInnerPolygon() {
+  let scaleFactor = innerScaleSlider.value();
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    innerPolygonVertices[i].x = polygonCenter.x + (previousInnerPolygonVertices[i].x - polygonCenter.x) * scaleFactor;
+    innerPolygonVertices[i].y = polygonCenter.y + (previousInnerPolygonVertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+  calculateInnerPolygonAreas();
+}
+
+function scaleOuterPolygon() {
+  let scaleFactor = outerScaleSlider.value();
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    outerPolygonVertices[i].x = polygonCenter.x + (previousOuterPolygonVertices[i].x - polygonCenter.x) * scaleFactor;
+    outerPolygonVertices[i].y = polygonCenter.y + (previousOuterPolygonVertices[i].y - polygonCenter.y) * scaleFactor;
+  }
+  calculateOuterPolygonAreas();
+}
+
+function saveInnerCSV() {
+  let rows = [];
+  rows.push(["Polygon", "Vertex", "Previous X", "Previous Y", "Current X", "Current Y"]);
+
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    rows.push([
+      "Inner",
+      `Vertex ${i + 1}`,
+      previousInnerPolygonVertices[i].x.toFixed(2),
+      previousInnerPolygonVertices[i].y.toFixed(2),
+      innerPolygonVertices[i].x.toFixed(2),
+      innerPolygonVertices[i].y.toFixed(2),
+    ]);
+  }
+
+  let csvContent = rows.map(row => row.join(",")).join("\n");
+  saveStrings([csvContent], "inner_polygon_coordinates.csv");
+}
+
+function saveOuterCSV() {
+  let rows = [];
+  rows.push(["Polygon", "Vertex", "Previous X", "Previous Y", "Current X", "Current Y"]);
+
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    rows.push([
+      "Outer",
+      `Vertex ${i + 1}`,
+      previousOuterPolygonVertices[i].x.toFixed(2),
+      previousOuterPolygonVertices[i].y.toFixed(2),
+      outerPolygonVertices[i].x.toFixed(2),
+      outerPolygonVertices[i].y.toFixed(2),
+    ]);
+  }
+
+  let csvContent = rows.map(row => row.join(",")).join("\n");
+  saveStrings([csvContent], "outer_polygon_coordinates.csv");
+}
+
+function displayCoordinateTable() {
+  let xOffset = 450;
+  let yOffset = 50;
+  fill(0);
+  textSize(12);
+  textAlign(LEFT);
+
+  text("Polygon | Vertex | Previous X | Previous Y | Current X | Current Y", xOffset, yOffset);
+  let rowIndex = 1;
+  for (let i = 0; i < innerPolygonVertices.length; i++) {
+    text(
+      `Inner   | V${i + 1}   | ${previousInnerPolygonVertices[i].x.toFixed(2)} | ${previousInnerPolygonVertices[i].y.toFixed(2)} | ${innerPolygonVertices[i].x.toFixed(2)} | ${innerPolygonVertices[i].y.toFixed(2)}`,
+      xOffset,
+      yOffset + 20 * rowIndex++
+    );
+  }
+  for (let i = 0; i < outerPolygonVertices.length; i++) {
+    text(
+      `Outer   | V${i + 1}   | ${previousOuterPolygonVertices[i].x.toFixed(2)} | ${previousOuterPolygonVertices[i].y.toFixed(2)} | ${outerPolygonVertices[i].x.toFixed(2)} | ${outerPolygonVertices[i].y.toFixed(2)}`,
+      xOffset,
+      yOffset + 20 * rowIndex++
+    );
+  }
+}
